@@ -97,13 +97,13 @@ void spend_time(int tid, char* info, int time_ds)
  * e depois executar o programa resultante.
  */
 
-int main(int argc, char* argv[])
-{
-    spend_time(1,"A",10);
-    spend_time(2,"B",0);
-    spend_time(3,NULL,13);
-    spend_time(4,"D",17);
-}
+// int main(int argc, char* argv[])
+// {
+//     spend_time(1,"A",10);
+//     spend_time(2,"B",0);
+//     spend_time(3,NULL,13);
+//     spend_time(4,"D",17);
+// }
 
 
 /* Saída esperada do programa de teste:
