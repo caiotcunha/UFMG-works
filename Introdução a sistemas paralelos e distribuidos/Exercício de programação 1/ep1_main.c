@@ -23,19 +23,19 @@ typedef struct{
 int contador_de_threads = 0;
 pthread_t *threads[1000];
 
-//mutex para proteger a sessão cŕitica
+// mutex para proteger a sessão cŕitica
 pthread_mutex_t mutex;
-//condição para testar se todos os recursos estão livres
+// condição para testar se todos os recursos estão livres
 pthread_cond_t recursos_livres;
 
-//função para debugar
+// função para debugar
 void escreve_array(int *array, int size){
     for(int i = 0; i < size; i++){
         printf(" %d", array[i]);
     }
 } 
 
-//função para testar se todos os recursos estão livres
+// função para testar se todos os recursos estão livres
 int testa_recursos_livres(int *recursos){
     for(int i = 0; i < 8; i++){
         if(recursos[i] != -1){
@@ -47,7 +47,7 @@ int testa_recursos_livres(int *recursos){
     return 1;
 }
 
-//inicializa todos os recursos como livres
+// inicializa todos os recursos como livres
 void init_recursos(void){
     resources = malloc(sizeof(Resources));
     for(int i = 0; i < 8 ;i++){
@@ -55,9 +55,16 @@ void init_recursos(void){
     }
 }
 
+// função para travar os recursos.
+// A função basicamente altera o vetor de recursos global
+// transformando em ocupado(0) os recursos, representados
+// pela posição no vetor, que estão sendo usados.
+// Para evitar condição de corrida, somente uma thread por vez
+// deve acessar o vetor e poder altera-lo, por isso o mutex.
+
 void trava_recursos(int *recursos){
-    //o acesso aos recursos deve ser feito apenas por uma thread para evitar
-    //condição de corrida
+    // o acesso aos recursos deve ser feito apenas por uma thread para evitar
+    // condição de corrida
     pthread_mutex_lock( &mutex );
 
     //sessão crítica
@@ -73,7 +80,14 @@ void trava_recursos(int *recursos){
     }
     pthread_mutex_unlock( &mutex );
 }
-
+// função para liberar os recursos
+// para mim fez sentido que ela recebesse um vetor de recursos
+// mantém o padrão de trava_recursos e não gasta mais memória
+// já que é um ponteiro para um vetor que já existe.
+// A função basicamente altera o vetor de recursos global
+// colocando como livres(1) os recursos que estavam sendo usados.
+// Como acessa os dados que são sensíveis para as outras threads
+// deve ser travado com mutex
 void libera_recursos(int *recursos){
     pthread_mutex_lock( &mutex );
     for(int i = 0; i < 8; i++){
@@ -81,8 +95,8 @@ void libera_recursos(int *recursos){
             resources->livres[recursos[i]] = 1;
         }
     }
-    //sinaliza que os recursos estão livres para que as threads esperando
-    //possam testar novamente
+    // sinaliza que os recursos estão livres para que as threads esperando
+    // possam testar novamente
     pthread_cond_broadcast ( &recursos_livres );
     pthread_mutex_unlock( &mutex );
 }
