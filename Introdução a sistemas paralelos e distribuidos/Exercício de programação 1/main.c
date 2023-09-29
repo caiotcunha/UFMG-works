@@ -4,6 +4,8 @@
 #include "spend_time.h"
 
 // tipo abstrato de dados para representar recursos
+// fiz dessa forma, pois achei que ficaria mais organizado
+// mas poderia ser apenas o ponteiro
 typedef struct{
     int livres[8];
 } Resources;
@@ -31,13 +33,13 @@ void escreve_array(int *array, int size){
     for(int i = 0; i < size; i++){
         printf(" %d", array[i]);
     }
-}
+} 
 
 //função para testar se todos os recursos estão livres
-int testa_recursos_livres(int *array){
+int testa_recursos_livres(int *recursos){
     for(int i = 0; i < 8; i++){
-        if(array[i] != -1){
-            if(resources->livres[array[i]] != 1){
+        if(recursos[i] != -1){
+            if(resources->livres[recursos[i]] != 1){
                 return 0;
             }
         }
@@ -45,55 +47,53 @@ int testa_recursos_livres(int *array){
     return 1;
 }
 
+//inicializa todos os recursos como livres
 void init_recursos(void){
     resources = malloc(sizeof(Resources));
-    //inicializa todos os recursos como livres
-    for(int i = 0; i<8;i++){
+    for(int i = 0; i < 8 ;i++){
         resources->livres[i] = 1;
     }
 }
 
 void trava_recursos(int *recursos){
+    //o acesso aos recursos deve ser feito apenas por uma thread para evitar
+    //condição de corrida
+    pthread_mutex_lock( &mutex );
+
+    //sessão crítica
+    while(!testa_recursos_livres(recursos)){
+        pthread_cond_wait ( &recursos_livres, &mutex );
+    }
+
+
     for(int i = 0; i < 8; i++){
         if(recursos[i] != -1){
             resources->livres[recursos[i]] = 0;
         }
     }
+    pthread_mutex_unlock( &mutex );
 }
 
 void libera_recursos(int *recursos){
+    pthread_mutex_lock( &mutex );
     for(int i = 0; i < 8; i++){
         if(recursos[i] != -1){
             resources->livres[recursos[i]] = 1;
         }
     }
+    //sinaliza que os recursos estão livres para que as threads esperando
+    //possam testar novamente
+    pthread_cond_broadcast ( &recursos_livres );
+    pthread_mutex_unlock( &mutex );
 }
 
 void *rotina_inicial(void *data){
-    Thread *teste = (Thread*)data;
-    int tid = teste->identificador;
-    int tlivre = teste->tempo_livre;
-    int tcritico = teste->tempo_critico;
-    int *lista_de_recursos = teste->lista_de_recursos;
+    Thread *thread = (Thread*)data;
 
-    spend_time(tid,NULL,tlivre);
-    pthread_mutex_lock( &mutex );
-
-    //sessão crítica
-    while(!testa_recursos_livres(lista_de_recursos)){
-        pthread_cond_wait ( &recursos_livres, &mutex );
-    }
-    //o acesso aos recursos deve ser feito apenas por uma thread para evitar
-    //condição de corrida
-    trava_recursos(lista_de_recursos);
-    pthread_mutex_unlock( &mutex );
-    spend_time(tid,"C",tcritico);
-    //liberar recursos pode ser feito de maneira paralela pelas threads
-    //como cada thread aloca recursos diferentes, não há condição de corrida
-    libera_recursos(lista_de_recursos);
-    //sinaliza que os recursos estão livres para que as threads esperando
-    //possam testar novamente
-    pthread_cond_signal ( &recursos_livres );
+    spend_time(thread->identificador,NULL,thread->tempo_livre);
+    trava_recursos(thread->lista_de_recursos);
+    spend_time(thread->identificador,"C",thread->tempo_critico);
+    libera_recursos(thread->lista_de_recursos);
     pthread_exit(NULL);
 }
 
@@ -135,7 +135,7 @@ int main(void){
         }
 
         // Cada thread deve ser criada assim que a linha com sua descrição seja lida.
-        pthread_t *th1 = malloc(sizeof(pthread_t));;
+        pthread_t *th1 = malloc(sizeof(pthread_t));
         contador_de_threads++;
         threads[contador_de_threads] = th1;
         pthread_create(th1, NULL, rotina_inicial,thread);
