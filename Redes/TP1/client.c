@@ -74,24 +74,23 @@ int main(int argc, char *argv[])
     while (1)
     {
         memset(buf, 0, BUFSZ);
-        scanf("%s%d%d", buf, &coordX, &coordY);
+        scanf("%s",buf);
         int type = transformActionStringInInt(buf);
+
+        scanf("%d%d", &coordX, &coordY);
         msg.type = type;
         msg.coordinates[0] = coordX;
         msg.coordinates[1] = coordY;
 
         send(s, &msg, sizeof(struct action), 0);
 
-        msg.type = 25;
-        msg.coordinates[0] = 25;
-        msg.coordinates[1] = 25;
-
         recv(s, &msg, sizeof(struct action), 0);
 
         printf("type: %d\n", msg.type);
-        printf("coordinates: %d %d\n", msg.coordinates[0], msg.coordinates[1]);
 
         printClientBoard(msg.board);
+
+        memset(buf, 0, BUFSZ);
     }
 
     puts(buf);

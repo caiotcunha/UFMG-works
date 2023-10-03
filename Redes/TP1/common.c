@@ -194,8 +194,7 @@ void printClientBoard(int board[MAX_ROWS][MAX_COLS])
     {
         for (int j = 0; j < MAX_COLS; j++)
         {
-            printf("%d ", board[i][j]);
-            // printf("%c ", transformIntInChar(board[i][j]));
+            printf("%c ", transformIntInChar(board[i][j]));
         }
         printf("\n");
     }

@@ -75,6 +75,17 @@ void inicializeBoardClientUnrevealed(int boardClientUnrevealed[MAX_ROWS][MAX_COL
     }
 }
 
+void copyMatrix(int board[MAX_ROWS][MAX_COLS], int msgBoard[MAX_ROWS][MAX_COLS])
+{
+    for (int i = 0; i < MAX_ROWS; i++)
+    {
+        for (int j = 0; j < MAX_COLS; j++)
+        {
+            msgBoard[i][j] = board[i][j];
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int s;
@@ -140,38 +151,36 @@ int main(int argc, char *argv[])
         // addrtostr(clientAddr, clientAddrStr, BUFSZ);
 
         // printf("[log] connection from %s\n", clientAddrStr);
+        while(1){
 
-        struct action msg;
-        size_t count = recv(clientSock, &msg, sizeof(struct action), 0);
-        if (count != sizeof(struct action))
-        {
-            logexit("recv");
-        }
-        // count = send(clientSock, &msg, sizeof(struct action), 0);
-        // if (count != 0)
-        // {
-        //     logexit("send");
-        // }
-        switch (msg.type)
-        {
-        case 0:
-            msg.board[MAX_ROWS][MAX_COLS] = boardClientUnrevealed;
-            send(clientSock, &msg, sizeof(struct action), 0);
-            break;
-        case 1:
-            break;
-        case 2:
-            break;
-        case 3:
-            break;
-        case 4:
-            break;
-        case 5:
-            break;
-        case 6:
-            break;
-        case 8:
-            break;
+            struct action msg;
+            recv(clientSock, &msg, sizeof(struct action), 0);
+            // count = send(clientSock, &msg, sizeof(struct action), 0);
+            // if (count != 0)
+            // {
+            //     logexit("send");
+            // }
+            switch (msg.type)
+            {
+            case 0:
+                copyMatrix(boardClientUnrevealed, msg.board);
+                send(clientSock, &msg, sizeof(struct action), 0);
+                break;
+            case 1:
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                break;
+            case 8:
+                break;
+            }
         }
     }
 
