@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 
+#include "common.h"
+
 void logexit(const char *str)
 {
     perror(str);

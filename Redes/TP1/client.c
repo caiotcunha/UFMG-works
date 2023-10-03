@@ -55,14 +55,24 @@ int main(int argc, char *argv[])
     printf("connected to %s\n", addrstr);
 
     char buf[BUFSZ];
+    int coordX;
+    int coordY;
     memset(buf, 0, BUFSZ);
-    printf("mensagem ");
-    fgets(buf, BUFSZ - 1, stdin);
-    size_t count = send(s, buf, strlen(buf) + 1, 0);
-    if (count != strlen(buf) + 1)
-    {
-        logexit("send");
+    scanf("%s%d%d",buf,&coordX,&coordY);
+    struct action msg;
+    if(strcmp("start",buf) == 0 ){
+        msg.type = 0;
     }
+    msg.coordinates[0] = coordX;
+    msg.coordinates[1] = coordY;
+    printf("coordenada 0:%d\n",msg.coordinates[0]);
+    printf("coordenada 1:%d\n",msg.coordinates[1]);
+
+    size_t count = send(s, &msg, sizeof(struct action), 0);
+    // if (count != strlen(buf) + 1)
+    // {
+    //     logexit("send");
+    // }
 
     memset(buf, 0, BUFSZ);
     unsigned total = 0;
@@ -78,6 +88,7 @@ int main(int argc, char *argv[])
         {
             logexit("recv");
         }
+        memset(buf, 0, BUFSZ);
     }
 
     printf("received %u bytes\n", total);

@@ -93,17 +93,21 @@ int main(int argc, char *argv[])
 
         printf("[log] connection from %s\n", clientAddrStr);
 
-        char buf[BUFSZ];
-        memset(buf, 0, BUFSZ);
-        size_t count = recv(clientSock, buf, BUFSZ - 1, 0);
-        printf("[msg] %s, %d bytes: %s\n", clientAddrStr, (int)count, buf);
+        struct action msg;
+        size_t count = recv(clientSock, &msg, sizeof(struct action), 0);
 
-        sprintf(buf, "remote endpoint: %.1000s", clientAddrStr);
-        count = send(clientSock, buf, strlen(buf) + 1, 0);
-        if (count != strlen(buf) + 1)
-        {
-            logexit("send");
-        }
+        // while( count < sizeof(struct action)){
+
+        // }
+        printf("o comando é %d\n",msg.type);
+        printf("aaa\n");
+        printf("a coordenada 0: %d\n",msg.coordinates[0]);
+        printf("a coordenada 1: %d\n",msg.coordinates[1]);
+        // count = send(clientSock, &msg, sizeof(struct action), 0);
+        // if (count != 0)
+        // {
+        //     logexit("send");
+        // }
         close(clientSock);
     }
 
