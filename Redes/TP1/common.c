@@ -119,3 +119,84 @@ int serverSockaddrInit(const char *proto, const char *portstr, struct sockaddr_s
         return -1;
     }
 }
+
+int transformActionStringInInt(char *type)
+{
+    if (strcmp(type, "start") == 0)
+    {
+        return 0;
+    }
+    else if (strcmp(type, "reveal") == 0)
+    {
+        return 1;
+    }
+    else if (strcmp(type, "flag") == 0)
+    {
+        return 2;
+    }
+    else if (strcmp(type, "state") == 0)
+    {
+        return 3;
+    }
+    else if (strcmp(type, "remove_flag") == 0)
+    {
+        return 4;
+    }
+    else if (strcmp(type, "reset") == 0)
+    {
+        return 5;
+    }
+    else if (strcmp(type, "win") == 0)
+    {
+        return 6;
+    }
+    else if (strcmp(type, "exit") == 0)
+    {
+        return 7;
+    }
+    else if (strcmp(type, "game_over") == 0)
+    {
+        return 8;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+char transformIntInChar(int intRepresentation)
+{
+    if (intRepresentation == -1)
+    {
+        return '*';
+    }
+    else if (intRepresentation == -2)
+    {
+        return '-';
+    }
+    else if (intRepresentation == 0)
+    {
+        return '0';
+    }
+    else if (intRepresentation == -3)
+    {
+        return '>';
+    }
+    else
+    {
+        return intRepresentation + '0';
+    }
+}
+
+void printClientBoard(int board[MAX_ROWS][MAX_COLS])
+{
+    for (int i = 0; i < MAX_ROWS; i++)
+    {
+        for (int j = 0; j < MAX_COLS; j++)
+        {
+            printf("%d ", board[i][j]);
+            // printf("%c ", transformIntInChar(board[i][j]));
+        }
+        printf("\n");
+    }
+}

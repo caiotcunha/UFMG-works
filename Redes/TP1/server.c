@@ -13,19 +13,8 @@ struct action
 {
     int type;
     int coordinates[2];
-    int board[4][4];
+    int board[MAX_ROWS][MAX_COLS];
 };
-
-// tipos de mensagem
-// start 0
-// reveal 1
-// flag 2
-// state 3
-// remove_flag 4
-// reset 5
-// win 6
-// exit 7
-// game_over 8
 
 void usage(int argc, char *argv[])
 {
@@ -34,14 +23,73 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
+void readFile(char *filename, int board[MAX_ROWS][MAX_COLS])
+{
+    FILE *file;
+    file = fopen(filename, "r");
+    char line[100];
+    if (file == NULL)
+    {
+        perror("Error opening file");
+        return;
+    }
+    for (int i = 0; i < MAX_ROWS; i++)
+    {
+        if (fgets(line, sizeof(line), file) == NULL)
+        {
+            break; // End of file or error
+        }
+        char *token = strtok(line, ",");
+        int j = 0;
+        while (token != NULL && j < MAX_COLS)
+        {
+            board[i][j] = atoi(token);
+            j++;
+            token = strtok(NULL, ",");
+        }
+    }
+
+    fclose(file);
+}
+
+void printBoard(int board[MAX_ROWS][MAX_COLS])
+{
+    for (int i = 0; i < MAX_ROWS; i++)
+    {
+        for (int j = 0; j < MAX_COLS; j++)
+        {
+            printf("%d ", board[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+void inicializeBoardClientUnrevealed(int boardClientUnrevealed[MAX_ROWS][MAX_COLS])
+{
+    for (int i = 0; i < MAX_ROWS; i++)
+    {
+        for (int j = 0; j < MAX_COLS; j++)
+        {
+            boardClientUnrevealed[i][j] = -2;
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int s;
+    int board[MAX_ROWS][MAX_COLS];
+    int boardClientUnrevealed[MAX_ROWS][MAX_COLS];
+    inicializeBoardClientUnrevealed(boardClientUnrevealed);
 
     if (argc < 3)
     {
         usage(argc, argv);
     }
+
+    char *filename = argv[4];
+    readFile(filename, board);
+    printBoard(board);
 
     struct sockaddr_storage storage;
     if (serverSockaddrInit(argv[1], argv[2], &storage) != 0)
@@ -72,10 +120,10 @@ int main(int argc, char *argv[])
         logexit("listen");
     }
 
-    char addrstr[BUFSZ];
-    addrtostr(addr, addrstr, BUFSZ);
+    // char addrstr[BUFSZ];
+    // addrtostr(addr, addrstr, BUFSZ);
 
-    printf("bound to %s, waiting connections\n", addrstr);
+    // printf("bound to %s, waiting connections\n", addrstr);
 
     while (1)
     {
@@ -88,27 +136,43 @@ int main(int argc, char *argv[])
         {
             logexit("accept");
         }
-        char clientAddrStr[BUFSZ];
-        addrtostr(clientAddr, clientAddrStr, BUFSZ);
+        // char clientAddrStr[BUFSZ];
+        // addrtostr(clientAddr, clientAddrStr, BUFSZ);
 
-        printf("[log] connection from %s\n", clientAddrStr);
+        // printf("[log] connection from %s\n", clientAddrStr);
 
         struct action msg;
         size_t count = recv(clientSock, &msg, sizeof(struct action), 0);
-
-        // while( count < sizeof(struct action)){
-
-        // }
-        printf("o comando é %d\n",msg.type);
-        printf("aaa\n");
-        printf("a coordenada 0: %d\n",msg.coordinates[0]);
-        printf("a coordenada 1: %d\n",msg.coordinates[1]);
+        if (count != sizeof(struct action))
+        {
+            logexit("recv");
+        }
         // count = send(clientSock, &msg, sizeof(struct action), 0);
         // if (count != 0)
         // {
         //     logexit("send");
         // }
-        close(clientSock);
+        switch (msg.type)
+        {
+        case 0:
+            msg.board[MAX_ROWS][MAX_COLS] = boardClientUnrevealed;
+            send(clientSock, &msg, sizeof(struct action), 0);
+            break;
+        case 1:
+            break;
+        case 2:
+            break;
+        case 3:
+            break;
+        case 4:
+            break;
+        case 5:
+            break;
+        case 6:
+            break;
+        case 8:
+            break;
+        }
     }
 
     exit(EXIT_SUCCESS);

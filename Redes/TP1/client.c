@@ -23,6 +23,18 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
+// void printBoard(char board[MAX_ROWS][MAX_COLS])
+// {
+//     for (int i = 0; i < MAX_ROWS; i++)
+//     {
+//         for (int j = 0; j < MAX_COLS; j++)
+//         {
+//             printf("%c ", board[i][j]);
+//         }
+//         printf("\n");
+//     }
+// }
+
 int main(int argc, char *argv[])
 {
     int s;
@@ -57,41 +69,31 @@ int main(int argc, char *argv[])
     char buf[BUFSZ];
     int coordX;
     int coordY;
-    memset(buf, 0, BUFSZ);
-    scanf("%s%d%d",buf,&coordX,&coordY);
     struct action msg;
-    if(strcmp("start",buf) == 0 ){
-        msg.type = 0;
-    }
-    msg.coordinates[0] = coordX;
-    msg.coordinates[1] = coordY;
-    printf("coordenada 0:%d\n",msg.coordinates[0]);
-    printf("coordenada 1:%d\n",msg.coordinates[1]);
 
-    size_t count = send(s, &msg, sizeof(struct action), 0);
-    // if (count != strlen(buf) + 1)
-    // {
-    //     logexit("send");
-    // }
-
-    memset(buf, 0, BUFSZ);
-    unsigned total = 0;
     while (1)
     {
-        count = recv(s, buf + total, BUFSZ - total, 0);
-        if (count == 0)
-        {
-            break;
-        }
-        total += count;
-        if (count < 0)
-        {
-            logexit("recv");
-        }
         memset(buf, 0, BUFSZ);
+        scanf("%s%d%d", buf, &coordX, &coordY);
+        int type = transformActionStringInInt(buf);
+        msg.type = type;
+        msg.coordinates[0] = coordX;
+        msg.coordinates[1] = coordY;
+
+        send(s, &msg, sizeof(struct action), 0);
+
+        msg.type = 25;
+        msg.coordinates[0] = 25;
+        msg.coordinates[1] = 25;
+
+        recv(s, &msg, sizeof(struct action), 0);
+
+        printf("type: %d\n", msg.type);
+        printf("coordinates: %d %d\n", msg.coordinates[0], msg.coordinates[1]);
+
+        printClientBoard(msg.board);
     }
 
-    printf("received %u bytes\n", total);
     puts(buf);
     exit(EXIT_SUCCESS);
     return 0;
