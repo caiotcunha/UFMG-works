@@ -178,7 +178,12 @@ int main(int argc, char *argv[])
                 break;
             case 6:
                 break;
+            case 7:
+                close(clientSock);
+                break;
             case 8:
+                //aqui tem q mandar uma mensagem
+                close(clientSock);
                 break;
             }
         }
