@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #define BUFSZ 1024
+#define WIN_COUNT 13
 
 struct action
 {
@@ -18,8 +19,6 @@ struct action
 
 void usage(int argc, char *argv[])
 {
-    printf("Usage: %s <v4|v6> <server port>\n", argv[0]);
-    printf("Example: %s v4 51511\n", argv[0]);
     exit(EXIT_FAILURE);
 }
 
@@ -37,7 +36,7 @@ void readFile(char *filename, int board[MAX_ROWS][MAX_COLS])
     {
         if (fgets(line, sizeof(line), file) == NULL)
         {
-            break; // End of file or error
+            break;
         }
         char *token = strtok(line, ",");
         int j = 0;
@@ -58,7 +57,7 @@ void printBoard(int board[MAX_ROWS][MAX_COLS])
     {
         for (int j = 0; j < MAX_COLS; j++)
         {
-            printf("%d ", board[i][j]);
+            printf("%d\t\t", board[i][j]);
         }
         printf("\n");
     }
@@ -70,7 +69,7 @@ void inicializeBoardClientUnrevealed(int boardClientUnrevealed[MAX_ROWS][MAX_COL
     {
         for (int j = 0; j < MAX_COLS; j++)
         {
-            boardClientUnrevealed[i][j] = -2;
+            boardClientUnrevealed[i][j] = HIDDEN_CELL;
         }
     }
 }
@@ -91,7 +90,6 @@ int main(int argc, char *argv[])
     int s;
     int board[MAX_ROWS][MAX_COLS];
     int boardClientUnrevealed[MAX_ROWS][MAX_COLS];
-    inicializeBoardClientUnrevealed(boardClientUnrevealed);
 
     if (argc < 3)
     {
@@ -125,65 +123,82 @@ int main(int argc, char *argv[])
         logexit("bind");
     }
 
-    // num conexoes deve ser um ?
     if (listen(s, 10) != 0)
     {
         logexit("listen");
     }
 
-    // char addrstr[BUFSZ];
-    // addrtostr(addr, addrstr, BUFSZ);
-
-    // printf("bound to %s, waiting connections\n", addrstr);
-
     while (1)
     {
+        int count = 0; // usado para verificar se o jogador ganhou
+        inicializeBoardClientUnrevealed(boardClientUnrevealed);
         struct sockaddr_storage clientStorage;
         struct sockaddr *clientAddr = (struct sockaddr *)(&clientStorage);
         // accept retorna um socket para a conexao
         socklen_t clientAddrLen = sizeof(clientStorage);
         int clientSock = accept(s, clientAddr, &clientAddrLen);
+        printf("client connected\n");
         if (clientSock == -1)
         {
             logexit("accept");
         }
-        // char clientAddrStr[BUFSZ];
-        // addrtostr(clientAddr, clientAddrStr, BUFSZ);
-
-        // printf("[log] connection from %s\n", clientAddrStr);
-        while(1){
+        while (1)
+        {
 
             struct action msg;
             recv(clientSock, &msg, sizeof(struct action), 0);
-            // count = send(clientSock, &msg, sizeof(struct action), 0);
-            // if (count != 0)
-            // {
-            //     logexit("send");
-            // }
+
+            if (msg.type == EXIT)
+            {
+                close(clientSock);
+                printf("client disconnected\n");
+                break;
+            }
             switch (msg.type)
             {
-            case 0:
+            case START:
                 copyMatrix(boardClientUnrevealed, msg.board);
                 send(clientSock, &msg, sizeof(struct action), 0);
                 break;
-            case 1:
+            case REVEAL:
+                if (board[msg.coordinates[0]][msg.coordinates[1]] != BOMB)
+                {
+                    count++;
+                    if (count == WIN_COUNT)
+                    {
+                        msg.type = 6; // tipo de vitória
+                        copyMatrix(board, msg.board);
+                        send(clientSock, &msg, sizeof(struct action), 0);
+                    }
+                    msg.type = 3; // tipo state
+                    boardClientUnrevealed[msg.coordinates[0]][msg.coordinates[1]] = board[msg.coordinates[0]][msg.coordinates[1]];
+                    msg.board[msg.coordinates[0]][msg.coordinates[1]] = board[msg.coordinates[0]][msg.coordinates[1]];
+                    send(clientSock, &msg, sizeof(struct action), 0);
+                }
+                else
+                {
+                    msg.type = 8; // tipo da ação de game over
+                    copyMatrix(board, msg.board);
+                    send(clientSock, &msg, sizeof(struct action), 0);
+                }
                 break;
-            case 2:
+            case FLAG:
+                msg.type = 3; // tipo state
+                boardClientUnrevealed[msg.coordinates[0]][msg.coordinates[1]] = FLAGGED;
+                copyMatrix(boardClientUnrevealed, msg.board);
+                send(clientSock, &msg, sizeof(struct action), 0);
                 break;
-            case 3:
+            case REMOVE_FLAG:
+                msg.type = 3; // tipo state
+                boardClientUnrevealed[msg.coordinates[0]][msg.coordinates[1]] = HIDDEN_CELL;
+                copyMatrix(boardClientUnrevealed, msg.board);
+                send(clientSock, &msg, sizeof(struct action), 0);
                 break;
-            case 4:
-                break;
-            case 5:
-                break;
-            case 6:
-                break;
-            case 7:
-                close(clientSock);
-                break;
-            case 8:
-                //aqui tem q mandar uma mensagem
-                close(clientSock);
+            case RESET:
+                printf("starting new game\n");
+                inicializeBoardClientUnrevealed(boardClientUnrevealed);
+                copyMatrix(boardClientUnrevealed, msg.board);
+                send(clientSock, &msg, sizeof(struct action), 0);
                 break;
             }
         }
