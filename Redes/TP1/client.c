@@ -22,6 +22,7 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
+// função que checa erros
 int checkError(struct action msg)
 {
     if (msg.type == 0 || msg.type == 7)
@@ -62,6 +63,7 @@ int checkError(struct action msg)
 
 int main(int argc, char *argv[])
 {
+    // criação do socket
     int s;
 
     if (argc < 3)
@@ -80,12 +82,14 @@ int main(int argc, char *argv[])
     {
         logexit("socket");
     }
+    // criando a conexão
     struct sockaddr *addr = (struct sockaddr *)(&storage);
     if (connect(s, addr, sizeof(storage)) != 0)
     {
         logexit("connect");
     }
 
+    //  estruturas para auxiliar a leitura e enviar a mensagem
     char buf[BUFSZ];
     char keyword[BUFSZ];
     int coordX;
@@ -111,6 +115,7 @@ int main(int argc, char *argv[])
             continue;
         };
 
+        // envia a mensagem com a struct action
         send(s, &msg, sizeof(struct action), 0);
 
         if (msg.type == EXIT)

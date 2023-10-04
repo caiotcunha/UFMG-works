@@ -130,18 +130,18 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        int count = 0; // usado para verificar se o jogador ganhou
-        inicializeBoardClientUnrevealed(boardClientUnrevealed);
+        int count = 0;                                          // usado para verificar se o jogador ganhou
+        inicializeBoardClientUnrevealed(boardClientUnrevealed); // inicializa o tabuleiro não revelado
         struct sockaddr_storage clientStorage;
         struct sockaddr *clientAddr = (struct sockaddr *)(&clientStorage);
-        // accept retorna um socket para a conexao
         socklen_t clientAddrLen = sizeof(clientStorage);
-        int clientSock = accept(s, clientAddr, &clientAddrLen);
+        int clientSock = accept(s, clientAddr, &clientAddrLen); // accept retorna um socket para a conexão
         printf("client connected\n");
         if (clientSock == -1)
         {
             logexit("accept");
         }
+        // loop do jogo
         while (1)
         {
 
@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
                 printf("client disconnected\n");
                 break;
             }
+            // decide a ação a ser tomada
             switch (msg.type)
             {
             case START:
@@ -166,30 +167,30 @@ int main(int argc, char *argv[])
                     count++;
                     if (count == WIN_COUNT)
                     {
-                        msg.type = 6; // tipo de vitória
+                        msg.type = WIN;
                         copyMatrix(board, msg.board);
                         send(clientSock, &msg, sizeof(struct action), 0);
                     }
-                    msg.type = 3; // tipo state
+                    msg.type = STATE;
                     boardClientUnrevealed[msg.coordinates[0]][msg.coordinates[1]] = board[msg.coordinates[0]][msg.coordinates[1]];
                     msg.board[msg.coordinates[0]][msg.coordinates[1]] = board[msg.coordinates[0]][msg.coordinates[1]];
                     send(clientSock, &msg, sizeof(struct action), 0);
                 }
                 else
                 {
-                    msg.type = 8; // tipo da ação de game over
+                    msg.type = GAME_OVER;
                     copyMatrix(board, msg.board);
                     send(clientSock, &msg, sizeof(struct action), 0);
                 }
                 break;
             case FLAG:
-                msg.type = 3; // tipo state
+                msg.type = STATE;
                 boardClientUnrevealed[msg.coordinates[0]][msg.coordinates[1]] = FLAGGED;
                 copyMatrix(boardClientUnrevealed, msg.board);
                 send(clientSock, &msg, sizeof(struct action), 0);
                 break;
             case REMOVE_FLAG:
-                msg.type = 3; // tipo state
+                msg.type = STATE;
                 boardClientUnrevealed[msg.coordinates[0]][msg.coordinates[1]] = HIDDEN_CELL;
                 copyMatrix(boardClientUnrevealed, msg.board);
                 send(clientSock, &msg, sizeof(struct action), 0);

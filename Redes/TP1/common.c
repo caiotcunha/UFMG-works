@@ -52,6 +52,7 @@ int addrparse(const char *addrstr, const char *portstr, struct sockaddr_storage 
     return -1;
 }
 
+// função para inicializar o socket do servidor dependendo do protocolo
 int serverSockaddrInit(const char *proto, const char *portstr, struct sockaddr_storage *storage)
 {
     uint16_t port = (uint16_t)atoi(portstr);
