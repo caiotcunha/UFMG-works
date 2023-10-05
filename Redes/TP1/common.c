@@ -14,6 +14,7 @@ void logexit(const char *str)
     exit(EXIT_FAILURE);
 }
 
+// inicializa o sockaddr_storage com o endereço e porta passados dependendo do protocolo
 int addrparse(const char *addrstr, const char *portstr, struct sockaddr_storage *storage)
 {
     if (addrstr == NULL || portstr == NULL)
