@@ -10,13 +10,6 @@
 
 #define BUFSZ 1024
 
-struct action
-{
-    int type;
-    int coordinates[2];
-    int board[4][4];
-};
-
 void usage(int argc, char *argv[])
 {
     exit(EXIT_FAILURE);
@@ -130,13 +123,13 @@ int main(int argc, char *argv[])
         {
             printf("GAME OVER!\n");
             printClientBoard(msg.board);
-            break;
+            continue;
         }
         if (msg.type == WIN)
         {
             printf("YOU WIN!\n");
             printClientBoard(msg.board);
-            break;
+            continue;
         }
 
         printClientBoard(msg.board);

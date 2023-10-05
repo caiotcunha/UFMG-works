@@ -10,13 +10,6 @@
 #define BUFSZ 1024
 #define WIN_COUNT 13
 
-struct action
-{
-    int type;
-    int coordinates[2];
-    int board[MAX_ROWS][MAX_COLS];
-};
-
 void usage(int argc, char *argv[])
 {
     exit(EXIT_FAILURE);

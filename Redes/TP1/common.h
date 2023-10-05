@@ -25,6 +25,13 @@
 #define HIDDEN_CELL -2
 #define FLAGGED -3
 
+struct action
+{
+    int type;
+    int coordinates[2];
+    int board[4][4];
+};
+
 int addrparse(const char *addrstr, const char *portstr, struct sockaddr_storage *storage);
 
 int serverSockaddrInit(const char *proto, const char *portstr, struct sockaddr_storage *storage);
