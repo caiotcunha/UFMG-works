@@ -14,6 +14,7 @@ void logexit(const char *str)
     exit(EXIT_FAILURE);
 }
 
+// inicializa o sockaddr_storage com o endereço e porta passados dependendo do protocolo
 int addrparse(const char *addrstr, const char *portstr, struct sockaddr_storage *storage)
 {
     if (addrstr == NULL || portstr == NULL)
@@ -52,42 +53,7 @@ int addrparse(const char *addrstr, const char *portstr, struct sockaddr_storage 
     return -1;
 }
 
-void addrtostr(const struct sockaddr *addr, char *str, size_t strsize)
-{
-    int version;
-    char addrstr[INET6_ADDRSTRLEN + 1] = "";
-    uint16_t port;
-
-    if (addr->sa_family == AF_INET)
-    {
-        version = 4;
-        struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
-        if (inet_ntop(AF_INET, &(addr4->sin_addr), addrstr, INET6_ADDRSTRLEN + 1) == NULL)
-        {
-            logexit("ntop");
-        }
-        port = ntohs(addr4->sin_port); // network to host short
-    }
-    else if (addr->sa_family == AF_INET6)
-    {
-        version = 6;
-        struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
-        if (inet_ntop(AF_INET6, &(addr6->sin6_addr), addrstr, INET6_ADDRSTRLEN + 1) == NULL)
-        {
-            logexit("ntop");
-        }
-        port = ntohs(addr6->sin6_port); // network to host short
-    }
-    else
-    {
-        logexit("unknown sa_family");
-    }
-    if (str != NULL && strsize > 0)
-    {
-        snprintf(str, strsize, "IPv%d %s %hu", version, addrstr, port);
-    }
-};
-
+// função para inicializar o socket do servidor dependendo do protocolo
 int serverSockaddrInit(const char *proto, const char *portstr, struct sockaddr_storage *storage)
 {
     uint16_t port = (uint16_t)atoi(portstr);
@@ -124,39 +90,39 @@ int transformActionStringInInt(char *type)
 {
     if (strcmp(type, "start") == 0)
     {
-        return 0;
+        return START;
     }
     else if (strcmp(type, "reveal") == 0)
     {
-        return 1;
+        return REVEAL;
     }
     else if (strcmp(type, "flag") == 0)
     {
-        return 2;
+        return FLAG;
     }
     else if (strcmp(type, "state") == 0)
     {
-        return 3;
+        return STATE;
     }
     else if (strcmp(type, "remove_flag") == 0)
     {
-        return 4;
+        return REMOVE_FLAG;
     }
     else if (strcmp(type, "reset") == 0)
     {
-        return 5;
+        return RESET;
     }
     else if (strcmp(type, "win") == 0)
     {
-        return 6;
+        return WIN;
     }
     else if (strcmp(type, "exit") == 0)
     {
-        return 7;
+        return EXIT;
     }
     else if (strcmp(type, "game_over") == 0)
     {
-        return 8;
+        return GAME_OVER;
     }
     else
     {
@@ -166,11 +132,11 @@ int transformActionStringInInt(char *type)
 
 char transformIntInChar(int intRepresentation)
 {
-    if (intRepresentation == -1)
+    if (intRepresentation == BOMB)
     {
         return '*';
     }
-    else if (intRepresentation == -2)
+    else if (intRepresentation == HIDDEN_CELL)
     {
         return '-';
     }
@@ -178,7 +144,7 @@ char transformIntInChar(int intRepresentation)
     {
         return '0';
     }
-    else if (intRepresentation == -3)
+    else if (intRepresentation == FLAGGED)
     {
         return '>';
     }
@@ -194,7 +160,7 @@ void printClientBoard(int board[MAX_ROWS][MAX_COLS])
     {
         for (int j = 0; j < MAX_COLS; j++)
         {
-            printf("%c ", transformIntInChar(board[i][j]));
+            printf("%c\t\t", transformIntInChar(board[i][j]));
         }
         printf("\n");
     }

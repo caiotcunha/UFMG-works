@@ -10,33 +10,53 @@
 
 #define BUFSZ 1024
 
-struct action
-{
-    int type;
-    int coordinates[2];
-    int board[4][4];
-};
-
 void usage(int argc, char *argv[])
 {
-    printf("Usage: %s <port>\n", argv[0]);
     exit(EXIT_FAILURE);
 }
 
-// void printBoard(char board[MAX_ROWS][MAX_COLS])
-// {
-//     for (int i = 0; i < MAX_ROWS; i++)
-//     {
-//         for (int j = 0; j < MAX_COLS; j++)
-//         {
-//             printf("%c ", board[i][j]);
-//         }
-//         printf("\n");
-//     }
-// }
+// função que checa erros
+int checkError(struct action msg)
+{
+    if (msg.type == 0 || msg.type == 7)
+    {
+        return 0;
+    }
+    if (msg.coordinates[0] < 0 || msg.coordinates[0] >= MAX_ROWS || msg.coordinates[1] < 0 || msg.coordinates[1] >= MAX_COLS)
+    {
+        printf("error: invalid cell\n");
+        return 1;
+    }
+    if (msg.type == -1)
+    {
+        printf("error: command not found\n");
+        return 1;
+    }
+    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] != HIDDEN_CELL && msg.type == 1)
+    {
+        printf("error: cell already revealed\n");
+        return 1;
+    }
+    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] == FLAGGED && msg.type == 2)
+    {
+        printf("error: cell already has a flag\n");
+        return 1;
+    }
+    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] != HIDDEN_CELL && msg.type == 2)
+    {
+        printf("error: cannot insert flag in revealed cell\n");
+        return 1;
+    }
+    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] != FLAGGED && msg.type == 4)
+    {
+        return 1;
+    }
+    return 0;
+}
 
 int main(int argc, char *argv[])
 {
+    // criação do socket
     int s;
 
     if (argc < 3)
@@ -55,18 +75,16 @@ int main(int argc, char *argv[])
     {
         logexit("socket");
     }
+    // criando a conexão
     struct sockaddr *addr = (struct sockaddr *)(&storage);
     if (connect(s, addr, sizeof(storage)) != 0)
     {
         logexit("connect");
     }
 
-    char addrstr[BUFSZ];
-    addrtostr(addr, addrstr, BUFSZ);
-
-    printf("connected to %s\n", addrstr);
-
+    //  estruturas para auxiliar a leitura e enviar a mensagem
     char buf[BUFSZ];
+    char keyword[BUFSZ];
     int coordX;
     int coordY;
     struct action msg;
@@ -74,26 +92,51 @@ int main(int argc, char *argv[])
     while (1)
     {
         memset(buf, 0, BUFSZ);
-        scanf("%s",buf);
-        int type = transformActionStringInInt(buf);
-
-        scanf("%d%d", &coordX, &coordY);
+        fgets(buf, sizeof(buf), stdin);
+        int result = sscanf(buf, "%s %d,%d", keyword, &coordX, &coordY);
+        int type = transformActionStringInInt(keyword);
         msg.type = type;
-        msg.coordinates[0] = coordX;
-        msg.coordinates[1] = coordY;
 
+        if (result == 3)
+        {
+            msg.coordinates[0] = coordX;
+            msg.coordinates[1] = coordY;
+        }
+
+        if (checkError(msg))
+        {
+            continue;
+        };
+
+        // envia a mensagem com a struct action
         send(s, &msg, sizeof(struct action), 0);
+
+        if (msg.type == EXIT)
+        {
+            close(s);
+            break;
+        }
 
         recv(s, &msg, sizeof(struct action), 0);
 
-        printf("type: %d\n", msg.type);
+        if (msg.type == GAME_OVER)
+        {
+            printf("GAME OVER!\n");
+            printClientBoard(msg.board);
+            continue;
+        }
+        if (msg.type == WIN)
+        {
+            printf("YOU WIN!\n");
+            printClientBoard(msg.board);
+            continue;
+        }
 
         printClientBoard(msg.board);
 
         memset(buf, 0, BUFSZ);
     }
 
-    puts(buf);
     exit(EXIT_SUCCESS);
     return 0;
 }
