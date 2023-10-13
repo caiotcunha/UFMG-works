@@ -1,6 +1,7 @@
 import heapq
 import numpy as np
 import sys
+import pdb
 
 class PuzzleNode:
     def __init__(self, state, parent, move, cost):
@@ -49,7 +50,13 @@ def possible_moves(state):
 def is_valid_move(x, y):
     return 0 <= x < 3 and 0 <= y < 3
 
-#def solve_puzzle(initial_state):
+def accepted_state(state):
+    goal_state = np.array([1,2,3,4,5,6,7,8,0], dtype=int).reshape(3, 3)
+    if( np.array_equal(goal_state, state) ):
+        return True
+
+    return False
+
 
 def make_move(state, move):
     i, j = get_blank_position(state)
@@ -65,17 +72,35 @@ def make_move(state, move):
     return new_state
 
 
-def bfs(puzzle,initial_state, print_puzzle):
+def bfs(initial_state, print_puzzle):
+    #nodes created
+    created_nodes = []
+    # precisa dar um jeito de nao adicionar nós iguais
+
+    count_moves = 0
     #nodes to expand
     tree = []
-    moves = possible_moves(initial_state)
+    root = PuzzleNode(initial_state, None, None, 0)
 
-    for move in moves:
-        new_state = make_move(initial_state, move)
-        node = PuzzleNode(new_state, initial_state, move, 1)
-        tree.append(node)
+    tree.append(root)
+    created_nodes.append(root)
 
-    pass
+    while tree:
+        current_node = tree.pop(0)
+        count_moves = count_moves + 1
+
+        if accepted_state(current_node.state):
+            print(count_moves)
+            return count_moves
+
+        moves = possible_moves(current_node.state)
+
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+            node = PuzzleNode(new_state, current_node.state, move, 1)
+            tree.append(node)
+
+    return "no solutions"
 
 def get_input():
     n = len(sys.argv)
@@ -89,7 +114,7 @@ def get_input():
 
 def define_solving_algorithm(algorithm, initial_state, print_puzzle):
     if algorithm == "B":
-        #solve_puzzle(initial_state, print_puzzle)
+        bfs(initial_state, print_puzzle)
         print(algorithm)
     elif algorithm == "I":
         #solve_puzzle(initial_state, print_puzzle)
@@ -112,5 +137,10 @@ def define_solving_algorithm(algorithm, initial_state, print_puzzle):
 
 if __name__ == "__main__":
     goal_state = np.array([1,2,3,4,5,6,7,8,0], dtype=int).reshape(3, 3)
-    algorithm,initial_state,print_puzzle = get_input()
+    #algorithm,initial_state,print_puzzle = get_input()
+    algorithm = "B"
+    initial_state = np.array([1,0,3,4,2,5,7,6,8], dtype=int).reshape(3, 3)
+    print_puzzle = False
+
+    define_solving_algorithm(algorithm, initial_state, print_puzzle)
 
