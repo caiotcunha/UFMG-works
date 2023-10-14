@@ -1,10 +1,9 @@
-import heapq
 import numpy as np
 import sys
-import pdb
+from collections import deque
 
 class PuzzleNode:
-    def __init__(self, state, parent, move, cost):
+    def __init__(self, state, parent = None, move = None, cost = 0):
         self.state = state
         self.parent = parent
         self.move = move
@@ -15,17 +14,27 @@ class PuzzleNode:
 
     def __eq__(self, other):
         return np.array_equal(self.state, other.state)
+    
+    def __hash__(self):
+        return hash(str(self.state))
 
 
-def print_solution(node):
-    if node is None:
-        return
-    print_solution(node.parent)
-    if node.move:
-        print(node.move)
-    for row in node.state:
-        print(" ".join(str(cell) for cell in row))
-    print("\n")
+def print_solution(node,print_puzzle):
+    print(node.cost)
+    print()
+    if print_puzzle:
+        steps = []
+        while node:
+            if node is None:
+                break
+            steps.insert(0, node)
+            node = node.parent
+        for step in steps:
+            for i in step.state:
+                for j in i:
+                    print(j,end=" ")
+                print()
+            print()
 
 def get_blank_position(state):
     for i in range(3):
@@ -52,11 +61,7 @@ def is_valid_move(x, y):
 
 def accepted_state(state):
     goal_state = np.array([1,2,3,4,5,6,7,8,0], dtype=int).reshape(3, 3)
-    if( np.array_equal(goal_state, state) ):
-        return True
-
-    return False
-
+    return np.array_equal(goal_state, state)
 
 def make_move(state, move):
     i, j = get_blank_position(state)
@@ -71,36 +76,83 @@ def make_move(state, move):
         new_state[i][j], new_state[i][j+1] = new_state[i][j+1], new_state[i][j]
     return new_state
 
+def get_neighbors(node):
+    neighbors = []
+    zero_position = np.argwhere(node.state == 0)[0]
+
+    moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+    for dr, dc in moves:
+        new_position = zero_position + np.array([dr, dc])
+
+        if 0 <= new_position[0] < 3 and 0 <= new_position[1] < 3:
+            new_state = np.copy(node.state)
+            new_state[zero_position[0], zero_position[1]] = node.state[new_position[0], new_position[1]]
+            new_state[new_position[0], new_position[1]] = 0
+            neighbors.append(PuzzleNode(new_state, node, f"Move {node.state[new_position[0], new_position[1]]} to ({new_position[0]}, {new_position[1]})", node.cost + 1))
+
+    return neighbors
+
 
 def bfs(initial_state, print_puzzle):
-    #nodes created
-    created_nodes = []
-    # precisa dar um jeito de nao adicionar nós iguais
 
-    count_moves = 0
-    #nodes to expand
-    tree = []
-    root = PuzzleNode(initial_state, None, None, 0)
-
-    tree.append(root)
-    created_nodes.append(root)
+    initial_node = PuzzleNode(initial_state, None, None, 0)
+    tree = deque([initial_node])
+    visited = set()
 
     while tree:
-        current_node = tree.pop(0)
-        count_moves = count_moves + 1
+        current_node = tree.popleft()
 
         if accepted_state(current_node.state):
-            print(count_moves)
-            return count_moves
+            print_solution(current_node,print_puzzle)
+            break
 
-        moves = possible_moves(current_node.state)
+        if str(current_node.state) in visited:
+            continue
 
-        for move in moves:
-            new_state = make_move(current_node.state, move)
-            node = PuzzleNode(new_state, current_node.state, move, 1)
-            tree.append(node)
+        visited.add(str(current_node.state))
 
-    return "no solutions"
+        for neighbor in get_neighbors(current_node):
+            tree.append(neighbor)
+
+    return
+
+#deep limited search
+def dls(initial_state,depth_limit):
+    initial_node = PuzzleNode(initial_state, None, None, 0)
+    tree = [initial_node]
+    visited = set()
+
+    while tree:
+        current_node = tree.pop()
+
+        if accepted_state(current_node.state):
+            return current_node
+
+        if current_node.cost >= depth_limit:
+            continue
+
+        if str(current_node.state) in visited:
+            continue
+
+        visited.add(str(current_node.state))
+
+        for neighbor in get_neighbors(current_node):
+            tree.append(neighbor)
+
+
+    return None
+
+def iterative_deepening(initial_state,print_puzzle):
+    depth_limit = 0
+
+    while True:
+        node = dls(initial_state, depth_limit)
+        if node:
+            print_solution(node,print_puzzle)
+            return
+        depth_limit += 2
+
 
 def get_input():
     n = len(sys.argv)
@@ -115,10 +167,8 @@ def get_input():
 def define_solving_algorithm(algorithm, initial_state, print_puzzle):
     if algorithm == "B":
         bfs(initial_state, print_puzzle)
-        print(algorithm)
     elif algorithm == "I":
-        #solve_puzzle(initial_state, print_puzzle)
-        print(algorithm)
+        iterative_deepening(initial_state,print_puzzle)
     elif algorithm == "U":
         #solve_puzzle(initial_state, print_puzzle)
         print(algorithm)
@@ -137,10 +187,7 @@ def define_solving_algorithm(algorithm, initial_state, print_puzzle):
 
 if __name__ == "__main__":
     goal_state = np.array([1,2,3,4,5,6,7,8,0], dtype=int).reshape(3, 3)
-    #algorithm,initial_state,print_puzzle = get_input()
-    algorithm = "B"
-    initial_state = np.array([1,0,3,4,2,5,7,6,8], dtype=int).reshape(3, 3)
-    print_puzzle = False
+    algorithm,initial_state,print_puzzle = get_input()
 
     define_solving_algorithm(algorithm, initial_state, print_puzzle)
 
