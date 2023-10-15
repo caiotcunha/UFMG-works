@@ -1,13 +1,16 @@
 import numpy as np
 import sys
 from collections import deque
+import heapq
 
 class PuzzleNode:
-    def __init__(self, state, parent = None, move = None, cost = 0):
+    def __init__(self, state, parent = None, move = None,cost = 0, depth = 0,heuristic = 0):
         self.state = state
         self.parent = parent
         self.move = move
+        self.depth = depth
         self.cost = cost
+        self.heuristic = heuristic
 
     def __lt__(self, other):
         return self.cost < other.cost
@@ -35,6 +38,24 @@ def print_solution(node,print_puzzle):
                     print(j,end=" ")
                 print()
             print()
+
+def print_solution_greed(node,print_puzzle):
+    print(node.depth)
+    print()
+    if print_puzzle:
+        steps = []
+        while node:
+            if node is None:
+                break
+            steps.insert(0, node)
+            node = node.parent
+        for step in steps:
+            for i in step.state:
+                for j in i:
+                    print(j,end=" ")
+                print()
+            print()
+
 
 def get_blank_position(state):
     for i in range(3):
@@ -76,69 +97,59 @@ def make_move(state, move):
         new_state[i][j], new_state[i][j+1] = new_state[i][j+1], new_state[i][j]
     return new_state
 
-def get_neighbors(node):
-    neighbors = []
-    zero_position = np.argwhere(node.state == 0)[0]
-
-    moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-
-    for dr, dc in moves:
-        new_position = zero_position + np.array([dr, dc])
-
-        if 0 <= new_position[0] < 3 and 0 <= new_position[1] < 3:
-            new_state = np.copy(node.state)
-            new_state[zero_position[0], zero_position[1]] = node.state[new_position[0], new_position[1]]
-            new_state[new_position[0], new_position[1]] = 0
-            neighbors.append(PuzzleNode(new_state, node, f"Move {node.state[new_position[0], new_position[1]]} to ({new_position[0]}, {new_position[1]})", node.cost + 1))
-
-    return neighbors
-
 
 def bfs(initial_state, print_puzzle):
 
-    initial_node = PuzzleNode(initial_state, None, None, 0)
+    initial_node = PuzzleNode(initial_state, None, None, 0,0)
     tree = deque([initial_node])
     visited = set()
 
     while tree:
         current_node = tree.popleft()
 
+        if str(current_node.state) in visited:
+            continue
+
         if accepted_state(current_node.state):
             print_solution(current_node,print_puzzle)
             break
 
-        if str(current_node.state) in visited:
-            continue
 
         visited.add(str(current_node.state))
 
-        for neighbor in get_neighbors(current_node):
-            tree.append(neighbor)
+        moves = possible_moves(current_node.state)
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+            new_node = PuzzleNode(new_state, current_node, move, current_node.depth + 1,current_node.depth + 1)
+            tree.append(new_node)
 
     return
 
 #deep limited search
 def dls(initial_state,depth_limit):
-    initial_node = PuzzleNode(initial_state, None, None, 0)
+    initial_node = PuzzleNode(initial_state, None, None, 0,0)
     tree = [initial_node]
     visited = set()
 
     while tree:
         current_node = tree.pop()
 
-        if accepted_state(current_node.state):
-            return current_node
-
-        if current_node.cost >= depth_limit:
-            continue
-
         if str(current_node.state) in visited:
             continue
 
+        if current_node.depth >= depth_limit:
+            continue
+
+        if accepted_state(current_node.state):
+            return current_node
+
         visited.add(str(current_node.state))
 
-        for neighbor in get_neighbors(current_node):
-            tree.append(neighbor)
+        moves = possible_moves(current_node.state)
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+            new_node = PuzzleNode(new_state, current_node, move, current_node.depth + 1,current_node.depth + 1)
+            tree.append(new_node)
 
 
     return None
@@ -153,6 +164,179 @@ def iterative_deepening(initial_state,print_puzzle):
             return
         depth_limit += 2
 
+#uniform depth search
+def ucs(initial_state, print_puzzle):
+
+    initial_node = PuzzleNode(initial_state, None, None, 0)
+    tree = []
+    heapq.heappush(tree,initial_node)
+    visited = set()
+
+    while tree:
+        current_node = heapq.heappop(tree)
+
+        if str(current_node.state) in visited:
+            continue
+
+        if accepted_state(current_node.state):
+            print_solution(current_node,print_puzzle)
+            break
+
+
+        visited.add(str(current_node.state))
+
+        moves = possible_moves(current_node.state)
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+            new_node = PuzzleNode(new_state, current_node, move, current_node.depth + 1,current_node.depth + 1)
+            if str(new_node.state) not in visited and new_node not in tree:
+                heapq.heappush(tree,new_node)
+            elif new_node in tree:
+                for node in tree:
+                    if np.array_equal(node.state, new_node.state) and node.cost > new_node.cost:
+                        tree.remove(node)
+                        heapq.heappush(tree,new_node)
+                        break
+    return
+
+#heuristic funcction to A* search and hillClimbing
+def manhattan_distance(state):
+    goal_state = (1, 2, 3, 4, 5, 6, 7, 8, 0)
+    state = state.reshape(9)
+    distance = 0
+    for i in range(9):
+        if state[i] == 0:
+            continue
+        gx, gy = divmod(goal_state.index(state[i]), 3)
+        x, y = divmod(i, 3)
+        distance += abs(gx - x) + abs(gy - y)
+    return distance
+
+def A_search(initial_state, print_puzzle):
+
+    initial_node = PuzzleNode(initial_state, None, None, 0)
+    tree = []
+    heapq.heappush(tree,initial_node)
+    visited = set()
+
+    while tree:
+        current_node = heapq.heappop(tree)
+
+        if str(current_node.state) in visited:
+            continue
+
+        if accepted_state(current_node.state):
+            print_solution(current_node,print_puzzle)
+            break
+
+
+        visited.add(str(current_node.state))
+
+        moves = possible_moves(current_node.state)
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+
+            #calculating depth considering the heuristic function
+            heuristic = manhattan_distance(new_state)
+            depth = current_node.depth + 1
+            cost = depth + heuristic
+            new_node = PuzzleNode(new_state, current_node, move,cost, depth,heuristic)
+            if new_node not in tree:
+                heapq.heappush(tree,new_node)
+            elif new_node in tree:
+                for node in tree:
+                    if np.array_equal(node.state, new_node.state) and node.cost > new_node.cost:
+                        tree.remove(node)
+                        heapq.heappush(tree,new_node)
+                        break
+
+    return
+
+# Heuristic funcction to greedy search
+def wrong_pieces(state):
+    goal_state = [1, 2, 3, 4, 5, 6, 7, 8, 0]
+    state = state.reshape(9)
+    contador = 0
+    for i in range(9):
+        if state[i] != goal_state[i]:
+            contador = contador + 1
+    return contador
+
+def greedy_search(initial_state, print_puzzle):
+
+    initial_node = PuzzleNode(initial_state, None, None, 0)
+    tree = []
+    heapq.heappush(tree,initial_node)
+    visited = set()
+
+    while tree:
+        current_node = heapq.heappop(tree)
+
+        if str(current_node.state) in visited:
+            continue
+
+        if accepted_state(current_node.state):
+            print_solution_greed(current_node,print_puzzle)
+            break
+
+
+        visited.add(str(current_node.state))
+
+        moves = possible_moves(current_node.state)
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+
+            #calculating depth considering the heuristic function
+            heuristic = wrong_pieces(new_state)
+            depth = current_node.depth + 1
+            cost = heuristic
+            new_node = PuzzleNode(new_state, current_node, move,cost, depth,heuristic)
+            if new_node not in tree:
+                heapq.heappush(tree,new_node)
+            elif new_node in tree:
+                for node in tree:
+                    if np.array_equal(node.state, new_node.state) and node.cost > new_node.cost:
+                        tree.remove(node)
+                        heapq.heappush(tree,new_node)
+                        break
+
+    return
+
+def hillClimbing(initial_state, print_puzzle):
+    found = 0
+    initial_node = PuzzleNode(initial_state, None, None, 0)
+    tree = []
+    heapq.heappush(tree,initial_node)
+
+    while tree:
+        current_node = heapq.heappop(tree)
+        tree = []
+
+        if accepted_state(current_node.state):
+            print_solution_greed(current_node,print_puzzle)
+            found = 1
+            break
+
+        moves = possible_moves(current_node.state)
+        for move in moves:
+            new_state = make_move(current_node.state, move)
+
+            #calculating depth considering the heuristic function
+            heuristic = manhattan_distance(new_state)
+            depth = current_node.depth + 1
+            cost = heuristic
+            new_node = PuzzleNode(new_state, current_node, move,cost, depth,heuristic)
+            if new_node not in tree:
+                heapq.heappush(tree,new_node)
+            elif new_node in tree:
+                for node in tree:
+                    if np.array_equal(node.state, new_node.state) and node.cost > new_node.cost:
+                        tree.remove(node)
+                        heapq.heappush(tree,new_node)
+                        break
+    if found == 0:
+        print("No solution found")
+    return
 
 def get_input():
     n = len(sys.argv)
@@ -170,17 +354,13 @@ def define_solving_algorithm(algorithm, initial_state, print_puzzle):
     elif algorithm == "I":
         iterative_deepening(initial_state,print_puzzle)
     elif algorithm == "U":
-        #solve_puzzle(initial_state, print_puzzle)
-        print(algorithm)
+        ucs(initial_state, print_puzzle)
     elif algorithm == "A":
-        #solve_puzzle(initial_state, print_puzzle)
-        print(algorithm)
+        A_search(initial_state, print_puzzle)
     elif algorithm == "G":
-        #solve_puzzle(initial_state, print_puzzle)
-        print(algorithm)
+        greedy_search(initial_state, print_puzzle)
     elif algorithm == "H":
-        #solve_puzzle(initial_state, print_puzzle)
-        print(algorithm)
+        hillClimbing(initial_state, print_puzzle)
     else:
         print("Invalid algorithm")
         sys.exit(1)
