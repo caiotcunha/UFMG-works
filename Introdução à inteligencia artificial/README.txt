@@ -1,0 +1,1 @@
+Para rodar o programa basta rodar dentro da pasta o comando: python3 TP1.py [letra maiuscula referente ao algoritmo] [estado inicial]
