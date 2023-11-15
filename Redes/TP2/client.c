@@ -15,45 +15,6 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
-// função que checa erros
-int checkError(struct action msg)
-{
-    if (msg.type == 0 || msg.type == 7)
-    {
-        return 0;
-    }
-    if (msg.coordinates[0] < 0 || msg.coordinates[0] >= MAX_ROWS || msg.coordinates[1] < 0 || msg.coordinates[1] >= MAX_COLS)
-    {
-        printf("error: invalid cell\n");
-        return 1;
-    }
-    if (msg.type == -1)
-    {
-        printf("error: command not found\n");
-        return 1;
-    }
-    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] != HIDDEN_CELL && msg.type == 1)
-    {
-        printf("error: cell already revealed\n");
-        return 1;
-    }
-    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] == FLAGGED && msg.type == 2)
-    {
-        printf("error: cell already has a flag\n");
-        return 1;
-    }
-    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] != HIDDEN_CELL && msg.type == 2)
-    {
-        printf("error: cannot insert flag in revealed cell\n");
-        return 1;
-    }
-    if (msg.board[msg.coordinates[0]][msg.coordinates[1]] != FLAGGED && msg.type == 4)
-    {
-        return 1;
-    }
-    return 0;
-}
-
 int main(int argc, char *argv[])
 {
     // criação do socket
@@ -118,14 +79,44 @@ int main(int argc, char *argv[])
             break;
         }
 
+        if( result == 2 ){
+            if(strcmp(keyword,"list") == 0){
+                operation.client_id = id;
+                operation.operation_type = LIST_TOPICS;
+                operation.server_response = 0;
+                strcpy(operation.topic, "");
+                strcpy(operation.content, "");
+                send(s, &operation, sizeof(struct BlogOperation), 0);
+                recv(s, &operation, sizeof(struct BlogOperation), 0);
+                printf("%s\n", operation.content);
+            }
+            else if(strcmp(keyword,"subscribe") == 0){
+                operation.client_id = id;
+                operation.operation_type = SUBSCRIBE_TOPIC;
+                operation.server_response = 0;
+                strcpy(operation.topic, topic);
+                strcpy(operation.content, "");
+                send(s, &operation, sizeof(struct BlogOperation), 0);
+                recv(s, &operation, sizeof(struct BlogOperation), 0);
+            }
+            else if(strcmp(keyword,"unsubscribe") == 0){
+                operation.client_id = id;
+                operation.operation_type = UNSUBSCRIBE_TOPIC;
+                operation.server_response = 0;
+                strcpy(operation.topic, topic);
+                strcpy(operation.content, "");
+                send(s, &operation, sizeof(struct BlogOperation), 0);
+                recv(s, &operation, sizeof(struct BlogOperation), 0);
+            }
+            else{
+                printf("Comando inválido\n");
+            }
+        }
 
         if( result == 3 ){
             printf("3");
         }
 
-        if( result == 2 ){
-            printf("2");
-        }
 
         // envia a mensagem com a struct action
         //send(s, &operation, sizeof(struct action), 0);
