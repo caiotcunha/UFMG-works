@@ -24,13 +24,16 @@ typedef struct postTopic{
 
 typedef struct Topic{
     char title[100];
-    char content[1000];
     int idsSubscribed[11];
     struct postTopic *posts;
     struct Topic *nextTopic;
 }Topic;
 
 Topic *topics = NULL;
+
+// mutex para garantir a ordem e a correta colocação dos posts em topicos
+pthread_mutex_t mutex;
+
 
 void usage(int argc, char *argv[])
 {
@@ -41,17 +44,16 @@ void printTopics(){
     Topic *aux = topics;
     while(aux != NULL){
         printf("Title: %s\n",aux->title);
-        printf("Content: %s\n",aux->content);
         postTopic *auxPost = aux->posts;
         while(auxPost != NULL){
             printf("Post: %s\n",auxPost->content);
             auxPost = auxPost->nextPost;
         }
-        for(int i = 1; i < 11;i++){
-            if(aux->idsSubscribed[i] == 1){
-                printf("Client %02d subscribed\n",i);
-            }
-        }
+        // for(int i = 1; i < 11;i++){
+        //     if(aux->idsSubscribed[i] == 1){
+        //         printf("Client %02d subscribed\n",i);
+        //     }
+        // }
         aux = aux->nextTopic;
     }
 };
@@ -89,8 +91,14 @@ void * clientThread(void *data){
 
             if (operation.operation_type == DESCONNECT)
             {
+                idsClients[clientId] = 0;
+                Topic *aux = topics;
+                while(aux != NULL){
+                    aux->idsSubscribed[clientId] = 0;
+                    aux = aux->nextTopic;
+                }
                 close(clientData->clientSock);
-                printf("client disconnected\n");
+                printf("client %02d was disconnected\n",clientId);
                 break;
             }
             // decide a ação a ser tomada
@@ -99,7 +107,7 @@ void * clientThread(void *data){
             case NEW_CONNECTION:
                 printf("client %02d connected\n",clientId);
                 operation.client_id = clientId;
-                operation.operation_type = 1;
+                operation.operation_type = NEW_CONNECTION;
                 operation.server_response = 1;
                 strcpy(operation.topic, "");
                 strcpy(operation.content, "");
@@ -109,6 +117,7 @@ void * clientThread(void *data){
                 topic = findTopic(operation.topic);
 
                 if(topic == NULL){
+                    pthread_mutex_lock( &mutex );
                     Topic *aux = topics;
                     while(aux->nextTopic != NULL){
                         aux = aux->nextTopic;
@@ -116,11 +125,11 @@ void * clientThread(void *data){
                     
                     Topic *newTopic = malloc(sizeof(Topic));
                     strcpy(newTopic->title,operation.topic);
-                    strcpy(newTopic->content,"");
                     newTopic->nextTopic = NULL;
                     newTopic->posts = NULL;
                     newTopic->idsSubscribed[clientId] = 1;
                     aux->nextTopic = newTopic;
+                    pthread_mutex_unlock( &mutex );
                 }
                 else{
                     if(topic->idsSubscribed[clientId] == 0){
@@ -150,11 +159,61 @@ void * clientThread(void *data){
                     }
                 }
                 break;
-            
+            case LIST_TOPICS:
+                Topic *aux = topics->nextTopic;
+                char *content;
+                while(aux != NULL){
+
+                    content = malloc(sizeof(char)*100);
+                    strcpy(content,aux->title);
+                    strcat(content,";");
+                    strcat(operation.content,content);
+                    aux = aux->nextTopic;
+                }
+                operation.client_id = clientId;
+                operation.operation_type = LIST_TOPICS;
+                operation.server_response = 1;
+                strcpy(operation.topic, "");
+                send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
+                break;
+            case NEW_TOPIC_POST:
+                topic = findTopic(operation.topic);
+                pthread_mutex_lock( &mutex );
+                if(topic == NULL){
+                    Topic *aux = topics;
+                    while(aux->nextTopic != NULL){
+                        aux = aux->nextTopic;
+                    }
+                    
+                    Topic *newTopic = malloc(sizeof(Topic));
+                    strcpy(newTopic->title,operation.topic);
+                    newTopic->nextTopic = NULL;
+                    newTopic->posts = NULL;
+                    newTopic->idsSubscribed[clientId] = 1;
+                    aux->nextTopic = newTopic;
+                    topic = newTopic;
+                }
+                //cria novo post topic
+                postTopic *newPostTopic = malloc(sizeof(postTopic));
+                strcpy(newPostTopic->content,operation.content);
+                newPostTopic->nextPost = NULL;
+                //adiciona o post no final da lista
+                postTopic *auxPost = topic->posts;
+                if(auxPost == NULL){
+                    topic->posts = newPostTopic;
+                    break;
+                }
+                while(auxPost->nextPost != NULL){
+                    auxPost = auxPost->nextPost;
+                }
+                auxPost->nextPost = newPostTopic;
+                pthread_mutex_unlock( &mutex );
+                break;
             }
-            //printTopics();
         }
+    pthread_mutex_lock( &mutex );
     threadsCount--;
+    pthread_mutex_unlock( &mutex );
     close(clientData->clientSock);
     pthread_exit(EXIT_SUCCESS);
 
@@ -164,11 +223,10 @@ void * clientThread(void *data){
 
 int main(int argc, char *argv[])
 {
+    pthread_mutex_init( &mutex, NULL);
     topics = malloc(sizeof(Topic));
     strcpy(topics->title,"");
-    strcpy(topics->content,"");
     topics->nextTopic = NULL;
-    topics->posts = NULL;
 
     for(int i = 1; i < 11;i++){
         idsClients[i] = 0;
@@ -239,9 +297,11 @@ int main(int argc, char *argv[])
             printf("Max clients reached\n");
             continue;
         }
-        pthread_t *tid  = malloc(sizeof(pthread_t));;
+        pthread_t *tid  = malloc(sizeof(pthread_t));
         threads[threadsCount] = tid;
+        pthread_mutex_lock( &mutex );
         threadsCount++;
+        pthread_mutex_unlock( &mutex );
         pthread_create(tid,NULL,clientThread,clientData);
     }
 
