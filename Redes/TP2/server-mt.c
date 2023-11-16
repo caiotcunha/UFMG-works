@@ -12,8 +12,10 @@
 #define BUFSZ 1024
 #define WIN_COUNT 13
 
-int threadsCount = 0;
-pthread_t *threads[10];
+int threadsCount = 1;
+pthread_t *threads[11];
+int socketsIds[11];
+
 
 int idsClients[11];
 
@@ -97,6 +99,12 @@ void * clientThread(void *data){
                     aux->idsSubscribed[clientId] = 0;
                     aux = aux->nextTopic;
                 }
+                operation.client_id = clientId;
+                operation.operation_type = DESCONNECT;
+                operation.server_response = 1;
+                strcpy(operation.topic, "");
+                strcpy(operation.content, "");
+                send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
                 close(clientData->clientSock);
                 printf("client %02d was disconnected\n",clientId);
                 break;
@@ -104,111 +112,121 @@ void * clientThread(void *data){
             // decide a ação a ser tomada
             switch (operation.operation_type)
             {
-            case NEW_CONNECTION:
-                printf("client %02d connected\n",clientId);
-                operation.client_id = clientId;
-                operation.operation_type = NEW_CONNECTION;
-                operation.server_response = 1;
-                strcpy(operation.topic, "");
-                strcpy(operation.content, "");
-                send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
-                break;
-            case SUBSCRIBE_TOPIC:
-                topic = findTopic(operation.topic);
-
-                if(topic == NULL){
-                    pthread_mutex_lock( &mutex );
-                    Topic *aux = topics;
-                    while(aux->nextTopic != NULL){
-                        aux = aux->nextTopic;
-                    }
-                    
-                    Topic *newTopic = malloc(sizeof(Topic));
-                    strcpy(newTopic->title,operation.topic);
-                    newTopic->nextTopic = NULL;
-                    newTopic->posts = NULL;
-                    newTopic->idsSubscribed[clientId] = 1;
-                    aux->nextTopic = newTopic;
-                    pthread_mutex_unlock( &mutex );
-                }
-                else{
-                    if(topic->idsSubscribed[clientId] == 0){
-                        topic->idsSubscribed[clientId] = 1;
-                    }
-                    else{
-                        printf("error: already subscribed");
-                    }
-                }
-
-                printf("client %02d subscribed to %s\n",clientId,operation.topic);
-                break;
-            case UNSUBSCRIBE_TOPIC:
-                topic = findTopic(operation.topic);
-
-                if(topic == NULL){
-                    printf("error: topic not found");
-                    continue;
-                }
-                else{
-                    if(topic->idsSubscribed[clientId] == 1){
-                        topic->idsSubscribed[clientId] = 0;
-                        printf("client %02d unsubscribed to %s\n",clientId,operation.topic);
-                    }
-                    else{
-                        printf("error: not subscribed");
-                    }
-                }
-                break;
-            case LIST_TOPICS:
-                Topic *aux = topics->nextTopic;
-                char *content;
-                while(aux != NULL){
-
-                    content = malloc(sizeof(char)*100);
-                    strcpy(content,aux->title);
-                    strcat(content,";");
-                    strcat(operation.content,content);
-                    aux = aux->nextTopic;
-                }
-                operation.client_id = clientId;
-                operation.operation_type = LIST_TOPICS;
-                operation.server_response = 1;
-                strcpy(operation.topic, "");
-                send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
-                break;
-            case NEW_TOPIC_POST:
-                topic = findTopic(operation.topic);
-                pthread_mutex_lock( &mutex );
-                if(topic == NULL){
-                    Topic *aux = topics;
-                    while(aux->nextTopic != NULL){
-                        aux = aux->nextTopic;
-                    }
-                    
-                    Topic *newTopic = malloc(sizeof(Topic));
-                    strcpy(newTopic->title,operation.topic);
-                    newTopic->nextTopic = NULL;
-                    newTopic->posts = NULL;
-                    newTopic->idsSubscribed[clientId] = 1;
-                    aux->nextTopic = newTopic;
-                    topic = newTopic;
-                }
-                //cria novo post topic
-                postTopic *newPostTopic = malloc(sizeof(postTopic));
-                strcpy(newPostTopic->content,operation.content);
-                newPostTopic->nextPost = NULL;
-                //adiciona o post no final da lista
-                postTopic *auxPost = topic->posts;
-                if(auxPost == NULL){
-                    topic->posts = newPostTopic;
+                case NEW_CONNECTION:
+                    printf("client %02d connected\n",clientId);
+                    operation.client_id = clientId;
+                    operation.operation_type = NEW_CONNECTION;
+                    operation.server_response = 1;
+                    strcpy(operation.topic, "");
+                    strcpy(operation.content, "");
+                    send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
                     break;
-                }
-                while(auxPost->nextPost != NULL){
-                    auxPost = auxPost->nextPost;
-                }
-                auxPost->nextPost = newPostTopic;
-                pthread_mutex_unlock( &mutex );
-                break;
+                case SUBSCRIBE_TOPIC:
+                    topic = findTopic(operation.topic);
+
+                    if(topic == NULL){
+                        pthread_mutex_lock( &mutex );
+                        Topic *aux = topics;
+                        while(aux->nextTopic != NULL){
+                            aux = aux->nextTopic;
+                        }
+                        
+                        Topic *newTopic = malloc(sizeof(Topic));
+                        strcpy(newTopic->title,operation.topic);
+                        newTopic->nextTopic = NULL;
+                        newTopic->posts = NULL;
+                        newTopic->idsSubscribed[clientId] = 1;
+                        aux->nextTopic = newTopic;
+                        pthread_mutex_unlock( &mutex );
+                    }
+                    else{
+                        if(topic->idsSubscribed[clientId] == 0){
+                            topic->idsSubscribed[clientId] = 1;
+                        }
+                        else{
+                            printf("error: already subscribed");
+                        }
+                    }
+
+                    printf("client %02d subscribed to %s\n",clientId,operation.topic);
+                    break;
+                case UNSUBSCRIBE_TOPIC:
+                    topic = findTopic(operation.topic);
+
+                    if(topic == NULL){
+                        printf("error: topic not found");
+                        continue;
+                    }
+                    else{
+                        if(topic->idsSubscribed[clientId] == 1){
+                            topic->idsSubscribed[clientId] = 0;
+                            printf("client %02d unsubscribed to %s\n",clientId,operation.topic);
+                        }
+                        else{
+                            printf("error: not subscribed");
+                        }
+                    }
+                    break;
+                case LIST_TOPICS:
+                    Topic *aux = topics->nextTopic;
+                    char *content;
+                    if( aux == NULL){
+                        operation.client_id = clientId;
+                        operation.operation_type = LIST_TOPICS;
+                        operation.server_response = 1;
+                        strcpy(operation.topic, "");
+                        strcpy(operation.content, "no topics available");
+                        send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
+                        break;
+                    }
+                    while(aux != NULL){
+
+                        content = malloc(sizeof(char)*100);
+                        strcpy(content,aux->title);
+                        strcat(content,";");
+                        strcat(operation.content,content);
+                        aux = aux->nextTopic;
+                    }
+                    operation.client_id = clientId;
+                    operation.operation_type = LIST_TOPICS;
+                    operation.server_response = 1;
+                    strcpy(operation.topic, "");
+                    send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
+                    break;
+                case NEW_TOPIC_POST:
+                    topic = findTopic(operation.topic);
+                    pthread_mutex_lock( &mutex );
+                    if(topic == NULL){
+                        Topic *aux = topics;
+                        while(aux->nextTopic != NULL){
+                            aux = aux->nextTopic;
+                        }
+                        
+                        Topic *newTopic = malloc(sizeof(Topic));
+                        strcpy(newTopic->title,operation.topic);
+                        newTopic->nextTopic = NULL;
+                        newTopic->posts = NULL;
+                        newTopic->idsSubscribed[clientId] = 1;
+                        aux->nextTopic = newTopic;
+                        topic = newTopic;
+                    }
+                    //cria novo post topic
+                    postTopic *newPostTopic = malloc(sizeof(postTopic));
+                    strcpy(newPostTopic->content,operation.content);
+                    newPostTopic->nextPost = NULL;
+                    //adiciona o post no final da lista
+                    postTopic *auxPost = topic->posts;
+                    if(auxPost == NULL){
+                        topic->posts = newPostTopic;
+                        pthread_mutex_unlock( &mutex );
+                        break;
+                    }
+                    while(auxPost->nextPost != NULL){
+                        auxPost = auxPost->nextPost;
+                    }
+                    auxPost->nextPost = newPostTopic;
+                    pthread_mutex_unlock( &mutex );
+                    break;
             }
         }
     pthread_mutex_lock( &mutex );
@@ -286,6 +304,7 @@ int main(int argc, char *argv[])
             if(idsClients[i] == 0){
                 idsClients[i] = 1;
                 clientId = i;
+                socketsIds[i] = clientSock;
                 break;
             }
         };

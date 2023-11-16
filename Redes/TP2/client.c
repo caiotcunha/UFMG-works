@@ -12,26 +12,42 @@
 
 #include <pthread.h>
 
-// typedef struct readInputClientData{
-//     int s;
-//     struct BlogOperation *operation;
-// }readInputClientData;
+pthread_t *receiverThread;
 
-// void * readInputClientThread(void *data){
-//     struct readInputClientData *clientData = (struct readInputClientData *)data;
+typedef struct receiverClientData{
+    int id;
+    int socket;
+}receiverClientData;
 
-//         // loop do servidor
-//         while (1)
-//         {
-//         }
-//     pthread_exit(EXIT_SUCCESS);
 
-// };
 
 void usage(int argc, char *argv[])
 {
     exit(EXIT_FAILURE);
 }
+
+
+void *receiverClientThread(void *data){
+    struct receiverClientData *clientData = (struct receiverClientData *)data;
+    int id = clientData->id;
+    int s = clientData->socket;
+    struct BlogOperation operation;
+    while(1){
+        int count = recv(s, &operation, sizeof(struct BlogOperation), 0);
+        if(count != 0 && operation.server_response == 1){
+            if(operation.operation_type == DESCONNECT){
+                pthread_exit(EXIT_SUCCESS);
+            }
+            else if(operation.operation_type == LIST_TOPICS){
+                printf("%s\n", operation.content);
+            }
+            else if(operation.operation_type == NEW_TOPIC_POST){
+                printf("new post added in %s by %02d %s", operation.topic,operation.client_id,operation.content);
+            }
+        }
+    }
+    pthread_exit(EXIT_SUCCESS);
+};
 
 int main(int argc, char *argv[])
 {
@@ -80,14 +96,14 @@ int main(int argc, char *argv[])
         printf("error creating user\n");
         exit(EXIT_FAILURE);
     }
-    // pthread_t *tid  = malloc(sizeof(pthread_t));
-    // pthread_create(tid,NULL,clientThread,clientData);
-    // cria a thread de leitura
-    // struct clientData *clientData = malloc(sizeof (*clientData));
-    // clientData->s = s;
-    // clientData->operation = &operation;
-    // pthread_t *readThread  = malloc(sizeof(pthread_t));
-    // pthread_create(readThread,NULL,readThread,clientData);
+
+    struct receiverClientData *data = malloc(sizeof (*data));
+    data->id = id;
+    data->socket = s;
+
+    pthread_t *tid  = malloc(sizeof(pthread_t));
+    pthread_create(tid,NULL,receiverClientThread,data);
+
 
     //  estruturas para auxiliar a leitura e enviar a mensagem
     char buf[BUFSZ];
@@ -119,15 +135,13 @@ int main(int argc, char *argv[])
         }
 
         if( result == 2 ){
-            if(strcmp(keyword,"list") == 0 && strcmp(topic,"topics") == 0 ){
+            if(strcmp(keyword,"list") == 0 && strcmp(topic,"topics") == 0){
                 operation.client_id = id;
                 operation.operation_type = LIST_TOPICS;
                 operation.server_response = 0;
                 strcpy(operation.topic, "");
                 strcpy(operation.content, "");
                 send(s, &operation, sizeof(struct BlogOperation), 0);
-                recv(s, &operation, sizeof(struct BlogOperation), 0);
-                printf("%s\n", operation.content);
             }
             else if(strcmp(keyword,"subscribe") == 0){
                 operation.client_id = id;
@@ -151,7 +165,7 @@ int main(int argc, char *argv[])
         }
 
         if( result == 3 ){
-            if(strcmp(keyword,"publish") == 0 && strcmp(topic,"in")){
+            if(strcmp(keyword,"publish") == 0 && strcmp(topic,"in") == 0 ){
                 operation.client_id = id;
                 operation.operation_type = NEW_TOPIC_POST;
                 operation.server_response = 0;
