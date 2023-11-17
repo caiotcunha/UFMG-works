@@ -14,7 +14,7 @@
 
 int threadsCount = 1;
 pthread_t *threads[11];
-int socketsIds[11];
+int socketThreadsId[11];
 
 
 int idsClients[11];
@@ -176,6 +176,7 @@ void * clientThread(void *data){
                         operation.server_response = 1;
                         strcpy(operation.topic, "");
                         strcpy(operation.content, "no topics available");
+                        printTopics();
                         send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
                         break;
                     }
@@ -191,6 +192,7 @@ void * clientThread(void *data){
                     operation.operation_type = LIST_TOPICS;
                     operation.server_response = 1;
                     strcpy(operation.topic, "");
+                    printTopics();
                     send(clientData->clientSock, &operation, sizeof(struct BlogOperation), 0);
                     break;
                 case NEW_TOPIC_POST:
@@ -225,6 +227,18 @@ void * clientThread(void *data){
                         auxPost = auxPost->nextPost;
                     }
                     auxPost->nextPost = newPostTopic;
+
+                    //envia o post para os clientes inscritos
+                    for(int i = 1; i < 11;i++){
+                        if(topic->idsSubscribed[i] == 1){
+                            operation.client_id = clientId;
+                            operation.operation_type = NEW_TOPIC_POST;
+                            operation.server_response = 1;
+                            strcpy(operation.topic, topic->title);
+                            strcpy(operation.content, newPostTopic->content);
+                            send(socketThreadsId[i], &operation, sizeof(struct BlogOperation), 0);
+                        }
+                    }
                     pthread_mutex_unlock( &mutex );
                     break;
             }
@@ -304,7 +318,6 @@ int main(int argc, char *argv[])
             if(idsClients[i] == 0){
                 idsClients[i] = 1;
                 clientId = i;
-                socketsIds[i] = clientSock;
                 break;
             }
         };
@@ -318,6 +331,7 @@ int main(int argc, char *argv[])
         }
         pthread_t *tid  = malloc(sizeof(pthread_t));
         threads[threadsCount] = tid;
+        socketThreadsId[threadsCount] = clientSock;
         pthread_mutex_lock( &mutex );
         threadsCount++;
         pthread_mutex_unlock( &mutex );
