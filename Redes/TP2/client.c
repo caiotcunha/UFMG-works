@@ -29,7 +29,6 @@ void usage(int argc, char *argv[])
 
 void *receiverClientThread(void *data){
     struct receiverClientData *clientData = (struct receiverClientData *)data;
-    int id = clientData->id;
     int s = clientData->socket;
     struct BlogOperation operation;
     while(1){
@@ -42,7 +41,10 @@ void *receiverClientThread(void *data){
                 printf("%s\n", operation.content);
             }
             else if(operation.operation_type == NEW_TOPIC_POST){
-                printf("new post added in %s by %02d %s", operation.topic,operation.client_id,operation.content);
+                printf("new post added in %s by %02d %s \n", operation.topic,operation.client_id,operation.content);
+            }
+            else if(operation.operation_type == SUBSCRIBE_TOPIC || operation.operation_type == UNSUBSCRIBE_TOPIC){
+                printf("%s\n",operation.content);
             }
         }
     }

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package KeyValueStore;
+
+service KeyValueStore {
+  rpc Insert (KeyValue) returns (InsertResponse);
+  rpc Query (Key) returns (QueryResponse);
+  rpc Activate (ActivationRequest) returns (ActivationResponse);
+  rpc Terminate (TerminateParams) returns (TerminateResponse);
+}
+
+message KeyValue {
+  int32 key = 1;
+  string value = 2;
+}
+
+message Key {
+  int32 key = 1;
+}
+
+message ActivationRequest {
+  string service_id = 1;
+}
+
+message InsertResponse {
+  int32 result = 1;
+}
+
+message QueryResponse {
+  string value = 1;
+}
+
+message ActivationResponse {
+  int32 value = 1;
+}
+
+message TerminateParams {}
+
+message TerminateResponse {
+  int32 result = 1;
+}
