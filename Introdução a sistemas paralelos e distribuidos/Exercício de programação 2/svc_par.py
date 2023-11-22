@@ -2,13 +2,18 @@ import grpc
 from concurrent import futures
 import storage_pb2
 import storage_pb2_grpc
+import centralStorage_pb2
+import centralStorage_pb2_grpc
 import sys
-
+import threading
+import socket
 class KeyValueStoreServicer(storage_pb2_grpc.KeyValueStoreServicer):
-    def __init__(self,stop_event,flag = False):
+    def __init__(self,stop_event,port,flag = False):
+        self._stop_event = stop_event
         self.flag = flag
         self.key_value_dict = {}
-        self.stop_event = stop_event
+        self.central = 0
+        self.port = port
 
     def Insert(self, request, context):
         key = request.key
@@ -28,29 +33,41 @@ class KeyValueStoreServicer(storage_pb2_grpc.KeyValueStoreServicer):
 
     def Activate(self, request, context):
         if(self.flag):
-             #Implemente a lógica de ativação aqui
-            return storage_pb2.ActivationResponse(value = 0)
+            #recebe como parâmetro um string identificador de um serviço
+            service = request.service_id
+            #conecta-se ao servidor centralizador
+            channel  = grpc.insecure_channel(service)
+            self.central = centralStorage_pb2_grpc.CentralRegistryStub(channel)
+            # faz uma chamada do procedimento de registro daquele servidor
+            # primeiro parâmetro: o string de identificação dele mesmo
+            id_string = socket.getfqdn()
+            print(id_string)
+            print(type(id_string))
+            id_server = f"{id_string}:{self.port}"
+            # segundo parâmetro: lista com todas as chaves que já foram inseridas até o momento
+            keys_to_register = list(self.key_value_dict.keys())
+            print(keys_to_register)
+            print(self.central)
+            response = self.central.Register(centralStorage_pb2.ServerInfo(server_id=id_server, keys=keys_to_register))
+            return storage_pb2.ActivationResponse(value = len(keys_to_register))
         else:
-            print(flag)
             return storage_pb2.ActivationResponse(value = 0)
 
     def Terminate(self, request, context):
-        # Implemente a lógica de término aqui.
         self._stop_event.set()
         return storage_pb2.TerminateResponse(result=0)
-
-def serve(port,flag):
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    storage_pb2_grpc.add_KeyValueStoreServicer_to_server(KeyValueStoreServicer(flag), server)
-    server.add_insecure_port(port)
-    server.start()
-    server.wait_for_termination()
 
 if __name__ == '__main__':
     port = sys.argv[1]
     flag = False
-    
+    #testa se tem a flag de ativação
     if len(sys.argv) == 3:
         flag = True
-    
-    serve(port,flag)
+    #Evento para tornar possivel finalizar o servidor pelo cliente
+    stop_event = threading.Event()
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    storage_pb2_grpc.add_KeyValueStoreServicer_to_server(KeyValueStoreServicer(stop_event,port,flag), server)
+    server.add_insecure_port(f'localhost:{port}')
+    server.start()
+    stop_event.wait()
+    server.stop(0)

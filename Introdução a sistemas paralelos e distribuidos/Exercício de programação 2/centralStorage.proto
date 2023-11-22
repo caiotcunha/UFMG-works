@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+service CentralRegistry {
+  rpc Register(ServerInfo) returns (RegisterResponse);
+  rpc MapKey(KeyRequest) returns (MappingResponse);
+  rpc Terminate(Empty) returns (TerminateResponse);
+}
+
+message ServerInfo {
+  string server_id = 1;
+  repeated int32 keys = 2;
+}
+
+message KeyRequest {
+  int32 key = 1;
+}
+
+message RegisterResponse {
+  int32 processed_keys = 1;
+}
+
+message MappingResponse {
+  string server_id = 1;
+}
+
+message TerminateResponse {
+  int32 result = 1;
+}
+
+message Empty {}
