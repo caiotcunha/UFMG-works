@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import grpc
 from concurrent import futures
 import centralStorage_pb2
@@ -11,6 +12,7 @@ class CentralRegistryServicer(centralStorage_pb2_grpc.CentralRegistryServicer):
         self._stop_event = stop_event
         self.key_server_mapping = {}
 
+    #procedimento que recebe um identificador de servidor e uma lista de chaves e armazena no servidor central
     def Register(self, request, context):
         server_id = request.server_id
 
@@ -20,6 +22,7 @@ class CentralRegistryServicer(centralStorage_pb2_grpc.CentralRegistryServicer):
 
         return centralStorage_pb2.RegisterResponse(processed_keys=self.processed_keys)
 
+    #procedimento que recebe uma chave e retorna o identificador do servidor que a armazena
     def MapKey(self, request, context):
         key = request.key
         if key in self.key_server_mapping:
@@ -28,6 +31,7 @@ class CentralRegistryServicer(centralStorage_pb2_grpc.CentralRegistryServicer):
         else:
             return centralStorage_pb2.MappingResponse()
 
+    #procedimento que finaliza o servidor central
     def Terminate(self, request, context):
         self._stop_event.set()
         return centralStorage_pb2.TerminateResponse(result = self.processed_keys)
@@ -40,7 +44,7 @@ if __name__ == "__main__":
     centralStorage_pb2_grpc.add_CentralRegistryServicer_to_server(
         CentralRegistryServicer(stop_event), server
     )
-    server.add_insecure_port(port)
+    server.add_insecure_port(f'0.0.0.0:{port}')
     server.start()
     stop_event.wait()
     server.stop(0)
