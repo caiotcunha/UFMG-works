@@ -8,28 +8,32 @@ import threading
 
 class CentralRegistryServicer(centralStorage_pb2_grpc.CentralRegistryServicer):
     def __init__(self,stop_event):
-        self.processed_keys = 0
         self._stop_event = stop_event
         self.key_server_mapping = {}
+        self.mutex = threading.Lock()
 
     #procedimento que recebe um identificador de servidor e uma lista de chaves e armazena no servidor central
     def Register(self, request, context):
-        server_id = request.server_id
+        processed_keys = 0
+        with self.mutex:
+            server_id = request.server_id
+            for key in request.keys:
+                
+                if key not in self.key_server_mapping or self.key_server_mapping[key] != server_id:
+                    self.key_server_mapping[key] = server_id
+                    processed_keys += 1
 
-        for key in request.keys:
-            self.key_server_mapping[key] = server_id
-            self.processed_keys += 1
-
-        return centralStorage_pb2.RegisterResponse(processed_keys=self.processed_keys)
+            return centralStorage_pb2.RegisterResponse(processed_keys=processed_keys)
 
     #procedimento que recebe uma chave e retorna o identificador do servidor que a armazena
     def MapKey(self, request, context):
-        key = request.key
-        if key in self.key_server_mapping:
-            server_id = self.key_server_mapping[key]
-            return centralStorage_pb2.MappingResponse(server_id=server_id)
-        else:
-            return centralStorage_pb2.MappingResponse()
+        with self.mutex:
+            key = request.key
+            if key in self.key_server_mapping:
+                server_id = self.key_server_mapping[key]
+                return centralStorage_pb2.MappingResponse(server_id=server_id)
+            else:
+                return centralStorage_pb2.MappingResponse()
 
     #procedimento que finaliza o servidor central
     def Terminate(self, request, context):

@@ -49,7 +49,7 @@ class KeyValueStoreServicer(storage_pb2_grpc.KeyValueStoreServicer):
             # segundo parâmetro: lista com todas as chaves que já foram inseridas até o momento
             keys_to_register = list(self.key_value_dict.keys())
             response = self.central.Register(centralStorage_pb2.ServerInfo(server_id=id_server, keys=keys_to_register))
-            return storage_pb2.ActivationResponse(value = len(keys_to_register))
+            return storage_pb2.ActivationResponse(value = response.processed_keys)
         else:
             return storage_pb2.ActivationResponse(value = 0)
 
